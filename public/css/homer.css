@@ -1,0 +1,42 @@
+html, body {
+    padding: 5px;
+    background-color:lightgrey;
+}
+
+h1 {
+	color: blue;
+	}
+
+#data-table {
+    font-family: calibri, arial;
+    width: 400px;
+    display: none;    /* hides the table by default*/
+}
+
+#data-table thead td {
+    background-color: #8CCCF1;
+}
+
+#data-table td {
+    border: 1px solid #466E85;
+    width: 136px;
+    padding: 7px;
+}
+#online-table {
+    font-family: calibri, arial;
+    width: 400px;
+}
+
+#online-table thead td {
+    background-color: #8CCCF1;
+}
+
+#online-table td {
+    border: 1px solid #466E85;
+    width: 136px;
+    padding: 7px;
+}
+
+#chart2 {
+    display: none;    
+}

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Homer IOT device</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
+<link href="css/c3.css" rel="stylesheet">
+<link href="css/homer.css" rel="stylesheet">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+<script src="http://ajax.aspnetcdn.com/ajax/knockout/knockout-2.2.1.js"></script>
+<script src="js/socket.io.js"></script>
+<script src='http://d3js.org/d3.v3.min.js' charset='utf-8'></script>
+<!--<script src="node_modules/chart.js/dist/Chart.bundle.js"></script> -->
+<script src="js/c3.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+</head>
+
+<body>
+<div id="main" class="container">
+  <br/>
+  <h1>Homer - home control system </h1> 
+  data provided by <em>Raspberry Pi II </em> - IOT device
+	 <div class="btn-toolbar">
+		<div class="btn-group">
+		</div>
+		</div>
+	</div>
+    <br />
+	<font size="4" color=red><div id="serverStatus"> Connecting to database.. </div></font> <br/>
+	<button id="btn-loadOnlineData" type="button" class="btn btn-primary">Refresh online data</button><br/><br/>
+	<font size="4" color=red><div id="IOTDeviceStatus"> Failing to connect IOT device online </div></font>
+    <br/>
+	<table id="online-table">
+	<thead>
+		<tr>
+			<td>Location</td>
+			<td>Temperature</td>
+			<td>Time</td>
+		</tr>
+	</thead>
+	<tbody>
+	<tr>
+		<td colspan="4" style="text-align:center" color=red >no direct connection to the IOT device</td>
+	</tr>
+	</tbody>
+	</table>
+	<br/>
+
+	<button id="hidechart1" type="button" class="btn btn-primary" > toggle Daily View</button> <br/><br/>
+    <div id="dailyview"></div>
+	<div id="chart1"> </div>
+	<br />
+	<button id="hidechart2" type="button" class="btn btn-primary" >toggle Weekly View</button><br/><br/>
+	<div id="chart2"> </div>
+	<br />
+	<button id="hidetable" type="button" class="btn btn-primary"  >toggle data table</button> <br/><br/>
+	<table id="data-table">
+	<thead>
+		<tr>
+			<td>Location</td>
+			<td>Temperature</td>
+			<td>Time</td>
+		</tr>
+	</thead>
+	<tbody>
+	<tr>
+		<td colspan="3" style="text-align:center">There are no items to list...</td>
+	</tr>
+	</tbody>
+</table>
+</div>
+
+<script type="text/javascript">
+
+// inquires data from database server
+function getData(type){
+	sensorData.lenght=0;
+	ttype = type;
+	socket.removeAllListeners();
+	socket.emit('loadData', ttype);
+	socket.on('loadData', function(data) {
+		document.getElementById("serverStatus").style.color = "#0000FF";
+		document.getElementById("serverStatus").innerHTML = "Networking status: Connected to Database"; 
+		var allData = JSON.parse(data); 
+		sensorData = allData;
+		loadTable('data-table', ['sensorName','temperature','time'], sensorData.item);
+		console.log(sensorData.item[0]);
+		switch(ttype) {
+			case 'daily': {
+				document.getElementById("dailyview").innerHTML = new Date();
+				loadChart('chart1', sensorData.item);   
+				break;
+			}
+			case 'weekly': {
+				loadChart('chart2', sensorData.item);   
+				break;
+			}
+			default: {
+			}
+		}
+	});
+}
+
+// inquires online data from Weather Station
+function getOnlineTemp(){
+	sensorData.lenght=0;
+	socket.emit('onlineData');
+	console.log('online data asked..');
+	socket.on('onlineData', function(data) {
+		document.getElementById("IOTDeviceStatus").style.color = "#0000FF";
+		document.getElementById("IOTDeviceStatus").innerHTML = 
+		                                        "Received online data from IOT Device at " + new Date() + " :"; 
+		sensorData = JSON.parse(data);
+		console.log(sensorData.item);
+		showTemp('online-table', ['sensorName','temperature','time'], sensorData.item);
+	});
+}
+
+// buttons logic
+
+$("#hidechart1").click(function(){
+	var toVisible = document.getElementById("chart1").style.display;
+	if ((toVisible != 'block') && (toVisible != '')) {             // getting fresh data when element is made visible  
+		var datalen = 132;
+		getData(datalen, 'daily');
+		document.getElementById("dailyview").innerHTML = new Date(); 
+	} else document.getElementById("dailyview").innerHTML = ""; 
+
+	$( "#chart1" ).toggle();
+});
+
+$("#hidechart2").click(function(){
+	var toVisible = document.getElementById("chart2").style.display;
+	if (toVisible != 'block') {             // getting fresh data when element is made visible  
+		getData('weekly');
+	}
+	$( "#chart2" ).toggle();
+});
+
+$("#hidetable").click(function(){
+	$( "#data-table" ).toggle();
+});
+
+$("#btn-loadOnlineData").click(function(){
+	getOnlineTemp();
+});
+
+// populates data table from server's database
+function loadTable(tableId, fields, data) {
+    $('#rowid','#tableid').remove();
+	var rows = '';
+	$.each(data, function(index, item) {
+		var row = '<tr>';
+		item.time = new Date(item.time).toString();
+		$.each(fields, function(index, field) {
+			row += '<td>' + item[field + ''] + '</td>';
+		});
+		rows += row + '<tr>';
+	});
+	$('#' + tableId + ' tbody').html(rows);
+}
+
+// populates online data table based on instant data from IOT device
+function showTemp(tableId, fields, data) {
+	$("#" + tableId + "tr").remove(); 
+	var firstElem = data[0];
+	var row = '<tr>';
+	if (data.length > 0) { 
+		firstElem.time = new Date(firstElem.time).toString();
+		$.each(fields, function(index, field) {
+			row += '<td>' + firstElem[field + ''] + '</td>';
+		});
+		$('#' + tableId + ' tbody').html(row);
+	}
+}
+
+// populates data charts based on server's database
+function loadChart(chartId, val) {
+	var chartData = val;
+	xdata = ['xdata'];
+	temperature = ['temperature'];
+	chartData.forEach(function(d) {
+		xdata.push(new Date(d.time));           
+		temperature.push(d.temperature);
+		});
+	switch(chartId) {
+		case 'chart1': {
+			myChart1.load({ columns: [xdata,temperature]});
+			break;
+		}
+		case 'chart2': {
+			myChart2.load({ columns: [xdata,temperature]});
+			break;
+		}
+		default: {
+			myChart1.load({ columns: [xdata,temperature]});
+			myChart2.load({ columns: [xdata,temperature]});
+		}
+	}
+}
+
+// configuring charts
+var xdata = ['xdata'];
+var temperature = ['temperature'];
+
+// daily chart
+var chartConf1 = {
+		size: {	height: 350, width:  600 },
+	    bindto: "#chart1",
+		xFormat: '%Y-%m-%d-%H-%M-%S',               //  format how the date is parsed-
+		data: {
+			x: 'xdata',
+			columns:[xdata,temperature]
+		},
+		axis : {
+			x : {
+				type : 'timeseries',
+				tick: { format: '%Y-%m-%d-%H-%M-%S',  // format how the data is displayed
+						rotate: 25,
+						culling: { max: 24 },
+						fit: false 
+					  },
+			    label: { text: 'Daily',
+						 position: 'inner-right'
+					   }
+			    },
+    			padding: {right: 100,
+				     	  left: 100
+				      },
+			y : { 
+				label: { text: 'Temperature C',
+						 position: 'inner-right'
+					   },
+				tick: { culling: { max: 32 },
+						fit: false 
+					  },
+			   
+				max: 28,
+				min: 22	    
+				}    
+		}
+}
+
+// weekly chart
+var chartConf2 = {
+		size: {	height: 350, width:  600 },
+	    bindto: "#chart2",
+		xFormat: '%Y-%m-%d-%H',               //  format how the date is parsed-
+		data: {
+			x: 'xdata',
+			columns:[xdata,temperature]
+		},
+		axis : {
+			x : {
+				type : 'timeseries',
+				tick: { format: '%Y-%m-%d-%H-%M',  // format how the data is displayed
+						rotate: 25,
+						culling: { max: 14 },
+						fit: true 
+					  },
+			    label: { text: 'Weekly',
+						 position: 'inner-right'
+					   }
+			    },
+			y : { 
+				label: { text: 'Temperature C',
+						 position: 'inner-right'
+					   },
+				tick: { culling: { max: 32 },
+						fit: true 
+					  },
+					   
+				center: 25,	   
+				max: 35,
+				min: 0	    
+				}    
+		}
+}
+
+// main body
+
+window.onload = init;
+
+function init() {
+	window.sensorData = {};                            // global variable to store data received from server
+	window.myChart1 = c3.generate(chartConf1);         // instantiates chart1 object
+	window.myChart2 = c3.generate(chartConf2);         // instantiates chart2 object
+	getData('daily');							       // get data from server DB
+	getOnlineTemp();			                       // get online data from IOT device
+}
+
+var socket = io("http://ec2-52-43-220-193.us-west-2.compute.amazonaws.com:8080"); 
+//var socket = io("http://localhost:8080"); 
+  
+</script>
+</body>
+</html>
