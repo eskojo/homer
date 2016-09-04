@@ -1,4 +1,4 @@
 public/css/c3.css
 public/js/c3.js
 public/js/socket.io.js
-
+*.log

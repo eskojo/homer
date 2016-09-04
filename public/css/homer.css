@@ -22,19 +22,29 @@ h1 {
     width: 136px;
     padding: 7px;
 }
+
+
 #online-table {
     font-family: calibri, arial;
-    width: 400px;
+    width: 450px;
 }
 
 #online-table thead td {
     background-color: #8CCCF1;
+    font-size: 15px;
+    font-weight: bolder;
 }
 
 #online-table td {
-    border: 1px solid #466E85;
+    border: 6px solid #466E85;
     width: 136px;
     padding: 7px;
+}
+.temperature {
+	font-weight: bolder;
+    background-color: lightgreen;
+    color: green;
+	
 }
 
 #chart2 {

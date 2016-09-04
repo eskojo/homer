@@ -18,7 +18,7 @@ var client = require('socket.io')(server);
 client.listen(8080);
 
 //Direct socket interface towards the IOT device
-var IOTSocketHTTP = "http://192.168.8.102:3000";
+var IOTSocketHTTP = "http://176.93.43.109:2222";
 var iotsocket = require('socket.io-client')(IOTSocketHTTP);
 
 client.use(function(socket,next){
@@ -41,13 +41,15 @@ client.on('connection', function (socket) {
 	var atDate, toDate;
 
     // provides data from DB to web browser
-    socket.on('loadData', function(type){
-		switch ( type ) {
+    socket.on('loadData', function(period){
+		switch ( period ) {
 			case 'daily': {
 				atDate = new Date();
-				  atDate.setHours(0,0,0,0);
+			    atDate.setHours(0,0,0,0);
+				
 				toDate = new Date();
-				  toDate.setHours(23,59,59,59);
+				toDate.setHours(23,59,59,59);
+				
 				query = sensors.where({entryDate: { $gte: atDate, $lt: toDate}});
 				break;
 			}
@@ -56,6 +58,7 @@ client.on('connection', function (socket) {
 				atDate = new Date();
 				  atDate.setTime(atDate.getTime() - dateOffset);
 				  atDate.setHours(0,0,0,0);
+				  console.log("weekStartDate " + atDate.toString());
 				toDate = new Date();
 				  toDate.setHours(23,59,59,59);
 				query = sensors.where({entryDate: { $gte: atDate, $lt: toDate}});
@@ -72,13 +75,13 @@ client.on('connection', function (socket) {
 			} else {
 				console.log("Server: Sensors data read successfully from database" );
 				var averSensData = {item:[{"temperature": "", "humidity": "", "time": ""}]};
-				  averSensData.item.length = 0;
-				if ( type == 'daily' ) {  
-					processWeeklyData(averSensData,items,atDate,1);               // period = 1 day
-				} else processWeeklyData(averSensData,items,atDate,7);            // period = 7 days
+			    averSensData.item.length = 0;
+				if ( period == 'daily' ) {  
+					processAveragedData(averSensData,items,atDate,1);               // period = 1 day
+				} else processAveragedData(averSensData,items,atDate,7);            // period = 7 days
 				
 				socket.emit('loadData', JSON.stringify(averSensData));            // send data to connected browser(s)
-//				console.log(averSensData.item);
+				console.log(averSensData.item);
 			}
 		});
 	});	
@@ -103,46 +106,49 @@ client.on('connection', function (socket) {
 });
 
 // calculates average value
-function calcAverage(temps){
+function calcAverage(tempsToAverage){
+	console.log("here :" + tempsToAverage);
 	var aveTemp = 0;
-	for ( var i=0; i<temps.length; i++){
-		aveTemp += Number(temps[i]);
+	for ( var i=0; i<tempsToAverage.length; i++){
+		aveTemp += Number(tempsToAverage[i]);
 	}
-	if (temps.length){
-		return ((aveTemp/temps.length).toFixed(2));
+	if (tempsToAverage.length){
+		return ((aveTemp/tempsToAverage.length).toFixed(2));
 	} else return 0;
 }
 
 
 // provides averaged data of the given period
 // humidity is dummy ie. not processed yet
-function processWeeklyData(averSensData,items,atdate,period){
-	var hh = new Date();
+function processAveragedData(averSensData,items,atdate,period){
 	var name ='';
-	var eday,hour,temp = 0;
-	var temps = [];
-	var day = atdate.getDate();
-	for ( var counter =0; counter<=period; counter++ ) {   // processing period in days    
-		for ( var h = 0; h <= 24;  h++ ) {                 // agregates an average over 1 hour
-			temps = [];
-			hour=0;
-			items.forEach(function(d,i) {                  // iterates over all measurements of the 7 day period
-				eday = d.entryDate.getDate();
-				hour = d.entryDate.getHours();
-				if ((day == eday) && (hour == h )){		   // matches to all measurements having given day and hour
-					temps.push(d.temperature);             // push selected raw measurements to wait for average function
-					hh = (d.entryDate);
-//					hh = hh.setHours(h,0,0,0);             // maybe to init time for averaged measurements..?
+	var entryDay,entryHour = 0;
+	var tempsToAverage = [];
+	var dayToMatch = atdate.getDate();
+	var matchingDate = new Date();
+	for ( var counter =0; counter<period; counter++ ) {   // processing period in days    
+		for ( var h = 0; h < 24;  h++ ) {                 // agregates an average over 1 hour
+			tempsToAverage = [];
+			entryHour = 0;
+			items.forEach(function(d,i) {                  // iterates over all the measurements in the scope
+				entryDay = d.entryDate.getDate();
+				entryHour = d.entryDate.getHours();
+				if ((dayToMatch == entryDay) && (entryHour == h )){		   // matches to all measurements having given day and hour
+					tempsToAverage.push(d.temperature);             // push selected raw measurements to wait for average function
+					matchingDate = d.entryDate;
+					matchingDate = matchingDate.setHours(h,0,0,0); // the result is averaged over 1 hour
 					name = d.sensorId.name;
 				}
 			});
-		if (temps.length) {
-			var average = calcAverage(temps );
-			averSensData.item.push({"temperature":average,"humidity":100,"time":hh,
+		if (tempsToAverage.length) {
+			console.log("here: " + tempsToAverage);
+			var average = calcAverage(tempsToAverage );
+			averSensData.item.push({"temperature":average,"humidity":100,"time":matchingDate,
 									"sensorName":name});
-			}
+			} else {} //  no actions here needed, nothing found to average
 		}		
-		day++;
+		var dayOffset = (24*60*60*1000);  // 1 day offset 
+		dayToMatch = new Date(atdate.getTime() + ( counter * dayOffset )).getDate();  // sets the matching target 1 day ahead
 	}
 }
 

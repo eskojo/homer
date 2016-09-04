@@ -38,7 +38,7 @@ var sensorData = {
 	"humidity":    100
 };
 
-var sensorId = {"id": "28-0416547c95ff", "name": "boiler room inside temperature" };
+var sensorId = {"id": "28-0416547c95ff", "name": "boiler room" };
 
 // inquires configuration from database server
 var dbServerAvailable = function(ok){
@@ -101,7 +101,7 @@ var pushIntervalObj = setInterval(pushSensors,config.pushInterval);
 
 // socket interface to serve online data requests
 var io = require('socket.io')(server);
-io.listen(3000);
+io.listen(2222);
 
 io.on('connection', function(socket){
 	console.log('client connected');

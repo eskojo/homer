@@ -7,10 +7,17 @@ var sensorDataSchema = new Schema({
 	humidity: [Number],
 	entryDate: {
 		type: Date,
-		default: Date.now
-	}
-
+		default: Date.now,
+		get: localDate
+		}
 });
+
+function localDate (date) {
+	var localDate = new Date(date);
+	return localDate;
+}
+
+sensorDataSchema.set('toJSON',{getters: true});
 
 mongoose.model('sensors', sensorDataSchema);
 
