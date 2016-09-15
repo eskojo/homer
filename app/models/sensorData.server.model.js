@@ -7,8 +7,8 @@ var sensorDataSchema = new Schema({
 	humidity: [Number],
 	entryDate: {
 		type: Date,
-		default: Date.now,
-		get: localDate
+		default: Date.now
+//		get: localDate
 		}
 });
 

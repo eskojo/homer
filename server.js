@@ -1,7 +1,10 @@
+// set working environment to it's default one 
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+
 // Mongo database and Express setups
-var mongoose = require('./config/mongoose'),
+var mongoose = require('./app/config/mongoose'),
     assert =   require('assert'),
-    express = require ('./config/express');
+    express = require ('./app/config/express');
 var db = mongoose();
 var sensors = require('mongoose').model('sensors');
 
@@ -45,11 +48,10 @@ client.on('connection', function (socket) {
 		switch ( period ) {
 			case 'daily': {
 				atDate = new Date();
-			    atDate.setHours(0,0,0,0);
-				
+				atDate.setHours(0,0,0,0);
+//				atDate.setTime(atDate.getTime() - (3*60*60*1000)); 
 				toDate = new Date();
 				toDate.setHours(23,59,59,59);
-				
 				query = sensors.where({entryDate: { $gte: atDate, $lt: toDate}});
 				break;
 			}
@@ -121,6 +123,7 @@ function calcAverage(tempsToAverage){
 // provides averaged data of the given period
 // humidity is dummy ie. not processed yet
 function processAveragedData(averSensData,items,atdate,period){
+	console.log("items " + items);
 	var name ='';
 	var entryDay,entryHour = 0;
 	var tempsToAverage = [];
@@ -131,6 +134,8 @@ function processAveragedData(averSensData,items,atdate,period){
 			tempsToAverage = [];
 			entryHour = 0;
 			items.forEach(function(d,i) {                  // iterates over all the measurements in the scope
+//				d.entryDate = d.entryDate.setTime(d.entryDate.getTime() + 1000*3*60*60); 
+//				console.log("entry with offset " + d.entryDate.toString());	
 				entryDay = d.entryDate.getDate();
 				entryHour = d.entryDate.getHours();
 				if ((dayToMatch == entryDay) && (entryHour == h )){		   // matches to all measurements having given day and hour
@@ -141,7 +146,6 @@ function processAveragedData(averSensData,items,atdate,period){
 				}
 			});
 		if (tempsToAverage.length) {
-			console.log("here: " + tempsToAverage);
 			var average = calcAverage(tempsToAverage );
 			averSensData.item.push({"temperature":average,"humidity":100,"time":matchingDate,
 									"sensorName":name});
